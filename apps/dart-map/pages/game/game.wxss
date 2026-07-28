@@ -1,0 +1,164 @@
+.page {
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  padding: 24rpx 24rpx 0;
+}
+
+.top-bar {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+
+.title {
+  font-size: 34rpx;
+  font-weight: 600;
+}
+
+.top-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.change-map-btn {
+  font-size: 24rpx;
+  color: #666;
+  background: #eee;
+  padding: 8rpx 20rpx;
+  border-radius: 30rpx;
+}
+
+.music-btn {
+  font-size: 40rpx;
+  padding: 8rpx 16rpx;
+}
+
+.upload-box {
+  height: 400rpx;
+  border: 2rpx dashed #ccc;
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #999;
+  font-size: 30rpx;
+}
+
+.canvas-wrap {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  border-radius: 16rpx;
+  overflow: hidden;
+  background: #f5f5f5;
+  flex-shrink: 0;
+}
+
+.map-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.control-area {
+  flex-shrink: 0;
+  padding: 16rpx 0 20rpx;
+}
+
+.power-row {
+  margin-bottom: 24rpx;
+}
+
+.label {
+  font-size: 26rpx;
+  color: #666;
+  margin-bottom: 8rpx;
+  display: block;
+}
+
+.joystick-row {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+}
+
+.joystick-base {
+  width: 140rpx;
+  height: 140rpx;
+  border-radius: 50%;
+  border: 4rpx solid #ddd;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.joystick-knob {
+  position: absolute;
+  top: 50rpx;
+  left: 50rpx;
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 50%;
+  background: #e24b4a;
+  transition: transform 0.05s linear;
+}
+
+.hint {
+  flex: 1;
+  font-size: 24rpx;
+  color: #999;
+}
+
+.throw-btn {
+  background: #e24b4a;
+  color: #fff;
+  font-size: 28rpx;
+  padding: 0 30rpx;
+  line-height: 72rpx;
+  border-radius: 12rpx;
+}
+
+.result-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+.result-card {
+  width: 560rpx;
+  background: #fff;
+  border-radius: 20rpx;
+  padding: 40rpx;
+  text-align: center;
+}
+
+.result-title {
+  font-size: 36rpx;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 16rpx;
+}
+
+.result-desc {
+  font-size: 28rpx;
+  color: #666;
+  display: block;
+  margin-bottom: 30rpx;
+}
+
+.again-btn {
+  background: #e24b4a;
+  color: #fff;
+}

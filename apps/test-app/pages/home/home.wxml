@@ -1,0 +1,14 @@
+<view class="page">
+  <text class="title">🎉 切换成功！</text>
+  <text class="subtitle">这是第二个小程序</text>
+
+  <view class="card-list">
+    <view wx:for="{{appList}}" wx:key="path" class="card">
+      <text class="card-name">{{item.name}}</text>
+      <text class="card-desc">{{item.desc}}</text>
+      <text class="card-path">apps/{{item.path}}/</text>
+    </view>
+  </view>
+
+  <text class="tip">修改 project.config.json 里的 miniprogramRoot 即可切换</text>
+</view>

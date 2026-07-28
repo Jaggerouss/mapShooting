@@ -1,0 +1,13 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/game/game"
+  ],
+  "window": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "飞镖选地方",
+    "navigationBarBackgroundColor": "#ffffff",
+    "backgroundColor": "#f7f7f7"
+  },
+  "sitemapLocation": "sitemap.json"
+}

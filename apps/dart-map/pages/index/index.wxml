@@ -1,0 +1,64 @@
+<view class="home-page">
+  <image
+    class="bg-image"
+    src="/assets/images/home_bg.jpg"
+    mode="aspectFill"
+  ></image>
+
+  <view class="mask"></view>
+
+  <view class="content">
+    <text class="app-title">跟着Jagger去旅行</text>
+
+    <button class="start-btn" bindtap="onStartGame">开始游戏</button>
+
+    <!-- 有最近使用：预设在上，最近使用在下 -->
+    <view wx:if="{{recentMaps.length}}" class="preset-row">
+      <text class="section-label">地图</text>
+      <view class="preset-list">
+        <view
+          wx:for="{{defaultMaps}}"
+          wx:key="label"
+          class="preset-item"
+          data-src="{{item.src}}"
+          bindtap="onUseDefaultMap"
+        >
+          <image class="preset-thumb" src="{{item.src}}" mode="aspectFill"></image>
+          <text class="preset-label">{{item.label}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{recentMaps.length}}" class="recent-row">
+      <text class="section-label">最近使用</text>
+      <scroll-view scroll-x class="recent-scroll">
+        <image
+          wx:for="{{recentMaps}}"
+          wx:key="*this"
+          class="recent-thumb"
+          src="{{item}}"
+          mode="aspectFill"
+          data-path="{{item}}"
+          bindtap="onUseRecentMap"
+        ></image>
+      </scroll-view>
+    </view>
+
+    <!-- 没有最近使用：预设地图直接显示在最下面 -->
+    <view wx:if="{{!recentMaps.length}}" class="recent-row">
+      <text class="section-label">地图</text>
+      <view class="preset-list">
+        <view
+          wx:for="{{defaultMaps}}"
+          wx:key="label"
+          class="preset-item"
+          data-src="{{item.src}}"
+          bindtap="onUseDefaultMap"
+        >
+          <image class="preset-thumb" src="{{item.src}}" mode="aspectFill"></image>
+          <text class="preset-label">{{item.label}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>
