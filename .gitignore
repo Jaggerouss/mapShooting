@@ -1,0 +1,5 @@
+# 敏感配置：包含真实 API Key，不进 git，本地手动填写
+apps/*/config.js
+
+# 系统/编辑器
+.DS_Store

@@ -40,7 +40,36 @@
   font-size: 56rpx;
   font-weight: 700;
   color: #fff;
+  margin-bottom: 16rpx;
+}
+
+.app-subtitle {
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.85);
   margin-bottom: 56rpx;
+  text-align: center;
+}
+
+.region-picker {
+  width: 420rpx;
+  margin-bottom: 32rpx;
+}
+
+.region-picker-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  background: rgba(255, 255, 255, 0.15);
+  border: 2rpx solid rgba(255, 255, 255, 0.6);
+  border-radius: 44rpx;
+  color: #fff;
+  font-size: 28rpx;
+  line-height: 72rpx;
+}
+
+.region-picker-arrow {
+  font-size: 22rpx;
 }
 
 .start-btn {
@@ -51,69 +80,4 @@
   font-weight: 600;
   border-radius: 44rpx;
   line-height: 88rpx;
-}
-
-.recent-row {
-  position: absolute;
-  bottom: 60rpx;
-  left: 0;
-  right: 0;
-  padding: 0 40rpx;
-  box-sizing: border-box;
-}
-
-.preset-row {
-  position: absolute;
-  bottom: 230rpx;
-  left: 0;
-  right: 0;
-  padding: 0 40rpx;
-  box-sizing: border-box;
-}
-
-.section-label {
-  font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.8);
-  display: block;
-  margin-bottom: 16rpx;
-}
-
-.preset-list {
-  display: flex;
-  gap: 12rpx;
-}
-
-.preset-item {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8rpx;
-}
-
-.preset-thumb {
-  width: 100%;
-  height: 90rpx;
-  border-radius: 10rpx;
-  border: 2rpx solid rgba(255, 255, 255, 0.6);
-}
-
-.preset-label {
-  font-size: 22rpx;
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.recent-scroll {
-  white-space: nowrap;
-  width: 100%;
-  display: block;
-}
-
-.recent-thumb {
-  display: inline-block;
-  width: 120rpx;
-  height: 120rpx;
-  border-radius: 12rpx;
-  margin-right: 16rpx;
-  border: 2rpx solid rgba(255, 255, 255, 0.6);
 }

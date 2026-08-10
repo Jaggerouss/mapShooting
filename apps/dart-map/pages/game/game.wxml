@@ -1,66 +1,43 @@
 <view class="page">
   <view class="top-bar">
-    <text class="title">飞镖选地方</text>
-    <view class="top-bar-actions">
-      <view wx:if="{{mapSrc}}" class="change-map-btn" bindtap="changeMap">
-        <text>更换地图</text>
-      </view>
-      <view class="music-btn" bindtap="toggleMusic">
-        <text>{{musicOn ? '🔊' : '🔇'}}</text>
-      </view>
+    <text class="title">选 · {{regionName}}</text>
+    <view wx:if="{{false}}" class="music-btn" bindtap="toggleMusic">
+      <text>{{musicOn ? '🔊' : '🔇'}}</text>
     </view>
   </view>
 
-  <!-- 未上传地图时显示上传按钮 -->
-  <view wx:if="{{!mapSrc}}" class="upload-box" bindtap="chooseMap">
-    <text>点击上传地图图片</text>
+  <view class="map-wrap">
+    <map
+      id="map"
+      class="map-view"
+      latitude="{{mapCenter.latitude}}"
+      longitude="{{mapCenter.longitude}}"
+      scale="{{mapScale}}"
+      markers="{{markers}}"
+      binderror="onMapError"
+      bindabilityfail="onMapAbilityFail"
+      bindupdated="onMapUpdated"
+    ></map>
   </view>
 
-  <!-- 地图 canvas（静态图片模式，SVG/JPG 均支持） -->
-  <view wx:else class="canvas-wrap" style="height: {{canvasHeight}}px;">
-    <canvas
-      type="2d"
-      id="mapCanvas"
-      class="map-canvas"
-      style="width: {{canvasWidth}}px; height: {{canvasHeight}}px;"
-    ></canvas>
+  <view class="control-area">
+    <text class="hint">限定范围：{{regionName}}</text>
+    <button class="throw-btn" bindtap="throwDart" disabled="{{throwing}}">
+      {{throwing ? '投掷中...' : '投掷飞镖'}}
+    </button>
   </view>
 
-  <!-- 控制区：力度 + 角度摇杆 + 投掷按钮 -->
-  <view wx:if="{{mapSrc}}" class="control-area">
-    <view class="power-row">
-      <text class="label">力度 {{power}}%</text>
-      <slider
-        min="0" max="100" value="{{power}}"
-        activeColor="#e24b4a"
-        bindchanging="onPowerChanging"
-        bindchange="onPowerChange"
-      />
+  <!-- 结果面板：贴底展示，不遮挡地图，可收起查看命中位置 -->
+  <view wx:if="{{showResult}}" class="result-panel {{resultCollapsed ? 'is-collapsed' : ''}}">
+    <view class="result-handle" bindtap="toggleResultCard">
+      <text>{{resultCollapsed ? '查看结果 ▲' : '收起看地图 ▼'}}</text>
     </view>
-
-    <view class="joystick-row">
-      <view
-        class="joystick-base"
-        bindtouchstart="onStickStart"
-        bindtouchmove="onStickMove"
-        bindtouchend="onStickEnd"
-      >
-        <view
-          class="joystick-knob"
-          style="transform: translate({{knobX}}px, {{knobY}}px);"
-        ></view>
-      </view>
-      <text class="hint">拖动摇杆确定方向</text>
-      <button class="throw-btn" bindtap="throwDart" disabled="{{throwing}}">投掷</button>
-    </view>
-  </view>
-
-  <!-- 结果弹层 -->
-  <view wx:if="{{showResult}}" class="result-mask" bindtap="closeResult">
-    <view class="result-card" catchtap="noop">
+    <view wx:if="{{!resultCollapsed}}" class="result-body">
       <text class="result-title">命中！</text>
       <text class="result-desc">{{resultText}}</text>
+      <text class="result-coord">{{resultCoord}}</text>
       <button class="again-btn" bindtap="throwAgain">再投一次</button>
     </view>
   </view>
 </view>
+
