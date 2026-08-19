@@ -6,7 +6,7 @@
     </view>
   </view>
 
-  <view class="map-wrap">
+  <view class="map-wrap {{shake ? 'is-shaking' : ''}}">
     <map
       id="map"
       class="map-view"
@@ -14,30 +14,152 @@
       longitude="{{mapCenter.longitude}}"
       scale="{{mapScale}}"
       markers="{{markers}}"
+      bindmarkertap="onMarkerTap"
       binderror="onMapError"
       bindabilityfail="onMapAbilityFail"
-      bindupdated="onMapUpdated"
     ></map>
+
+    <!-- 蓄力期间的游走准星。纯演出：落点由力度决定，准星位置不参与计算。 -->
+    <view wx:if="{{phase === 'charging'}}" class="fx-layer">
+      <view class="aim">
+        <view class="aim-ring"></view>
+        <view class="aim-dot"></view>
+      </view>
+    </view>
+
+    <!-- 投掷特效层：飞镖飞行 + 命中冲击波。
+         候选质心已被设为地图中心，所以飞镖终点固定在容器正中，无需经纬度换算。
+         依赖 map 组件同层渲染（基础库 2.9.0+），普通 view 才能覆盖原生地图。 -->
+    <view class="fx-layer" wx:if="{{dartFlying || impact}}">
+      <!-- 锁定准星：飞行期间收缩 -->
+      <view wx:if="{{dartFlying}}" class="crosshair">
+        <view class="ch-ring"></view>
+        <view class="ch-line ch-line-h"></view>
+        <view class="ch-line ch-line-v"></view>
+      </view>
+
+      <!-- 飞镖：俯视视角，看到的是镖尾，由大变小表示飞远 -->
+      <view wx:if="{{dartFlying}}" class="dart">
+        <view class="dart-fin dart-fin-1"></view>
+        <view class="dart-fin dart-fin-2"></view>
+        <view class="dart-fin dart-fin-3"></view>
+        <view class="dart-fin dart-fin-4"></view>
+        <view class="dart-hub"></view>
+      </view>
+
+      <!-- 命中冲击波：两层错开扩散 -->
+      <view wx:if="{{impact}}" class="shock shock-1"></view>
+      <view wx:if="{{impact}}" class="shock shock-2"></view>
+      <view wx:if="{{impact}}" class="flash"></view>
+    </view>
   </view>
 
   <view class="control-area">
-    <text class="hint">限定范围：{{regionName}}</text>
-    <button class="throw-btn" bindtap="throwDart" disabled="{{throwing}}">
-      {{throwing ? '投掷中...' : '投掷飞镖'}}
+    <!-- 力度条：CSS linear + alternate 无限摆动，蓄力期间零 setData。
+         松手时按经过时间反推力度，所见即所得。 -->
+    <view class="power-bar">
+      <view wx:if="{{phase === 'charging'}}" class="power-fill"></view>
+      <view wx:if="{{phase !== 'charging'}}" class="power-idle"></view>
+      <view class="power-tick power-tick-near"></view>
+      <view class="power-tick power-tick-far"></view>
+    </view>
+    <view class="power-legend">
+      <text>市区</text>
+      <text class="power-hint">
+        {{phase === 'charging' ? '松手投掷' : (powerText || '按住蓄力 · 力度越大越远')}}
+      </text>
+      <text>远郊</text>
+    </view>
+
+    <button
+      class="throw-btn {{phase === 'charging' ? 'is-charging' : ''}}"
+      disabled="{{phase !== 'idle' && phase !== 'charging'}}"
+      bindtouchstart="onChargeStart"
+      bindtouchend="onChargeEnd"
+      bindtouchcancel="onChargeCancel"
+    >
+      {{phase === 'charging' ? '松手投掷' : (phase === 'idle' ? '按住蓄力' : '投掷中...')}}
     </button>
   </view>
 
-  <!-- 结果面板：贴底展示，不遮挡地图，可收起查看命中位置 -->
-  <view wx:if="{{showResult}}" class="result-panel {{resultCollapsed ? 'is-collapsed' : ''}}">
+  <!-- 三选一：候选只显示距离和方位（本地算，不花 API 配额），选中后才查地名 -->
+  <view wx:if="{{phase === 'picking'}}" class="pick-panel">
+    <text class="pick-title">三个落点，挑一个 · {{powerText}}</text>
+    <view class="pick-list">
+      <view
+        wx:for="{{candidates}}"
+        wx:key="index"
+        class="pick-card"
+        data-index="{{item.index}}"
+        bindtap="onPickCandidate"
+      >
+        <text class="pick-no">{{item.label}}</text>
+        <text class="pick-dist">{{item.distText}}</text>
+        <text class="pick-dir">中心{{item.dirText}}方向</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 确认弹窗：先探周边再问「行不行」。
+       只报个地名的话用户判断不了——「盈港东路」听着像回事，可能三公里内一家店都没有。 -->
+  <view wx:if="{{phase === 'confirming'}}" class="dialog-mask">
+    <view class="dialog">
+      <text class="dialog-title">{{resultText}}</text>
+      <text class="dialog-meta">{{resultMeta}}</text>
+
+      <view class="dialog-probe">
+        <view wx:if="{{!probeDone}}" class="probe-spinner"></view>
+        <text class="probe-text">{{probeText}}</text>
+      </view>
+
+      <view class="dialog-actions">
+        <button class="dialog-btn dialog-btn-ghost" bindtap="onRejectSpot">换一个</button>
+        <button class="dialog-btn dialog-btn-primary" bindtap="onConfirmSpot">就这儿</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 结果面板：地名 + 周边推荐。贴底展示，可收起看地图 -->
+  <view wx:if="{{phase === 'result'}}" class="result-panel {{resultCollapsed ? 'is-collapsed' : ''}}">
     <view class="result-handle" bindtap="toggleResultCard">
       <text>{{resultCollapsed ? '查看结果 ▲' : '收起看地图 ▼'}}</text>
     </view>
+
     <view wx:if="{{!resultCollapsed}}" class="result-body">
-      <text class="result-title">命中！</text>
-      <text class="result-desc">{{resultText}}</text>
-      <text class="result-coord">{{resultCoord}}</text>
+      <text class="result-title">{{resultText}}</text>
+      <text class="result-meta">{{resultMeta}}</text>
+
+      <!-- tab 懒加载：点开哪个查哪个，别一次烧三次配额 -->
+      <view class="tab-bar">
+        <view
+          wx:for="{{tabs}}"
+          wx:key="key"
+          class="tab {{activeTab === item.key ? 'is-active' : ''}}"
+          data-key="{{item.key}}"
+          bindtap="onSwitchTab"
+        >{{item.label}}</view>
+      </view>
+
+      <view wx:if="{{nearbyLoading}}" class="nearby-hint">正在找...</view>
+      <view wx:elif="{{nearbyMessage}}" class="nearby-hint">{{nearbyMessage}}</view>
+
+      <scroll-view wx:else scroll-y class="nearby-scroll">
+        <view
+          wx:for="{{nearbyList}}"
+          wx:key="id"
+          class="poi"
+          data-index="{{index}}"
+          bindtap="onOpenPoi"
+        >
+          <view class="poi-main">
+            <text class="poi-name">{{item.name}}</text>
+            <text class="poi-addr">{{item.category}} · {{item.address}}</text>
+          </view>
+          <text class="poi-dist">{{item.distanceText}}</text>
+        </view>
+      </scroll-view>
+
       <button class="again-btn" bindtap="throwAgain">再投一次</button>
     </view>
   </view>
 </view>
-
