@@ -20,4 +20,15 @@ Page({
     const region = this.data.regionList[this.data.regionIndex];
     wx.navigateTo({ url: `/pages/game/game?regionId=${region.id}` });
   },
+
+  onShareAppMessage() {
+    return {
+      title: "跟着 Jagger 去旅行 —— 投个飞镖决定去哪",
+      path: "/pages/index/index",
+    };
+  },
+
+  onShareTimeline() {
+    return { title: "跟着 Jagger 去旅行 —— 投个飞镖决定去哪" };
+  },
 });

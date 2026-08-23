@@ -91,14 +91,17 @@ apps/
 
 ```js
 {
-  provider: "tencent",
+  provider: "tencent",       // MOCK_LBS 打开时是 "mock"
   supportsRating: false,     // 腾讯不给评分
+  isMock: false,
   hasKey(),
   reverseGeocode(point)      // -> Promise<{ ok, address, reason }>
-  countNearby(point, opts)   // -> Promise<{ ok, count }>
-  searchNearby(point, opts)  // -> Promise<{ ok, list }>
+  searchNearby(point, opts)  // -> Promise<{ ok, count, list, message }>
+  clearCache()               // 清掉 Storage 里的周边缓存
 }
 ```
+
+`searchNearby` 同时返回 `count` 和 `list`，就是为了让探测和列表复用一次请求 —— 地点搜索每天只有 200 次。
 
 `searchNearby` 返回的每项都带 `rating` / `cost` 字段，腾讯实现下恒为 `null` —— 这是给换服务商预留的接缝。详见 [高德接入方案.md](高德接入方案.md)。
 
@@ -126,11 +129,37 @@ apps/
 | `IMPACT_MS` | 960 | `shock-out` (820) + delay (120) |
 | `POWER_SWING_MS` | 1200 | `power-swing` |
 
-### API 配额
+### API 配额（重要）
 
-一次完整投掷常见 **3～4 次**调用：逆地理编码 1 + 周边探测 1～3 + 每打开一个 tab 1（切回来命中缓存不重查）。
+腾讯位置服务**个人开发者**的额度极不对称：
 
-代码里处理了 `status === 121`（配额耗尽）—— 这个额度是真会用完的，所以 tab 才做懒加载而不是一次拉三类。
+| 接口 | 每日额度 | 每次投掷消耗 |
+|---|---|---|
+| 逆地址解析 | 6000 | 1 |
+| **地点搜索** | **200** ← 瓶颈 | **1～3** |
+
+地点搜索只有 200 次/日，是整个应用的天花板。为此做了三件事：
+
+1. **探测与默认 tab 复用同一次请求** —— 探测荒不荒用的 `keyword=美食` 和「吃饭」tab 完全一样，所以 `searchNearby` 一次返回 `count` + `list`，确认后直接用缓存渲染，不再发第二次
+2. **探测起步半径按落点远近跳档** —— 市区从 1km 起，远郊直接从 5km 起。原来远郊必然连探 1→3→5 三档，白烧两次
+3. **结果按 ~100m 网格缓存进 Storage**（7 天）—— 同一片区域反复投掷不重复请求
+
+实测每投消耗：只看默认 tab **1 次**，三个 tab 都看 **3 次**。按 200/日 折算约 **66～200 次投掷**。
+
+`status` 码处理：`121` = 每日超限（明确提示额度）、`120` = 每秒超限（自动隔 1.1 秒重试 2 次）、`110/111/112/190/199` 各有对应文案，且都带上原始 `message` 便于排查。
+
+> 企业认证后地点搜索提升到 **50 万/日**。个人开发者做原型够用，要上线建议认证。
+
+### 配额烧光了怎么继续开发
+
+`config.js` 里打开 mock 开关，全程假数据，一次请求都不发：
+
+```js
+module.exports = {
+  TENCENT_MAP_KEY: "...",
+  MOCK_LBS: true,   // 周边和地名走本地假数据
+};
+```
 
 ---
 
@@ -159,6 +188,7 @@ apps/
 | 首页同步加载全部 GeoJSON | `index.js` 模块顶层 require 了 `regions.js`，连带解析约 62KB JSON，只为拿三个区域名字。区域越多启动越慢，应拆成「名字表 + 几何懒加载」 |
 | 音乐开关按钮被隐藏 | `game.wxml` 里 `wx:if="{{false}}"`，`toggleMusic` / `musicOn` / `.music-btn` 全是死代码。音频补齐后用户**没法关掉背景音乐** |
 | 周边列表没有评分 | 腾讯地点搜索不返回该字段，不是 bug 是 API 限制。要评分见 [高德接入方案.md](高德接入方案.md) |
+| 地点搜索额度只有 200/日 | 个人开发者的硬限制。已做复用 + 跳档 + Storage 缓存压到每投 1～3 次；要更多得企业认证 |
 | `.eslintrc.js` 是摆设 | 没有 `extends`、`rules` 为空、`ecmaFeatures` 位置也写错了（应在 `parserOptions` 里）。而且没有 `package.json`，eslint 根本装不上 |
 | `index.wxml` 有拖拽残留 | 「开始游戏」按钮上挂着 `style="position: relative; left: 0rpx; top: 2rpx"`，开发者工具误拖出来的 |
 | 经纬度均匀采样 ≠ 面积均匀 | 上海纬度跨度约 1.2°，偏差可忽略。以后加省级 / 国家级区域才需要按 `asin` 修正 |
@@ -173,7 +203,7 @@ apps/
 | 优先级 | 功能 |
 |---|---|
 | P1 | 历史记录（投掷过的地点列表 + 收藏） |
-| P1 | 结果分享（生成带标记的图片） |
+| P1 | 结果分享生成带标记的图片（文字分享已做） |
 | P2 | 接高德拿评分（方案已写好） |
 | P2 | 多人模式，轮流投掷 |
 | P2 | 按可达性过滤（选「上海市」可能抽到崇明岛，实际当天到不了） |
@@ -186,6 +216,9 @@ apps/
 2. 在 `assets/geo/regions.js` 里 require 进来，往 `REGIONS` 加一项 `{ id, geo }`
 
 id 用 adcode，`name` 和 `center` 从 GeoJSON 的 `properties` 里自动读，不用手填。
+
+> ⚠️ **坐标系必须是 GCJ-02。** 微信 `<map>` 和腾讯位置服务都用 GCJ-02，DataV 是阿里系（与高德同坐标系）所以现有三份数据是对的。
+> 但 OpenStreetMap / Natural Earth / 政府开放数据 给的多半是 **WGS84**，在上海会整体偏移约 **500 米** —— 不报错、不崩溃、地图上看着也「差不多」，只是落点、地名、周边搜索全部系统性错位。换数据源前先确认坐标系。
 
 ## 加一个新小程序
 
