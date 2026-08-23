@@ -33,7 +33,7 @@
   "compileType": "miniprogram",
   "miniprogramRoot": "apps/dart-map/",
   "srcMiniprogramRoot": "apps/dart-map/",
-  "libVersion": "2.32.3",
+  "libVersion": "latest",
   "appid": "wx011dd4ef400bc850",
   "projectname": "dart-map-game",
   "condition": {},

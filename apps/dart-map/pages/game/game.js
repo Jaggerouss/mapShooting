@@ -173,7 +173,6 @@ Page({
 
     resultCollapsed: false,
     resultText: "",
-    resultCoord: "",
     resultMeta: "",
 
     // 确认弹窗
@@ -202,13 +201,24 @@ Page({
   _chosen: null,
   _probeRadius: PROBE_RADII[0],
   _nearbyCache: null,
+  _nearbyInflight: null,
+  _regionId: "",
+
+  // 页面已销毁 / 用户已改选择时，异步回调必须闭嘴。
+  // 用递增序号而不是比较候选对象的身份——「换一个」之后重选同一张卡，
+  // candidates[i] 还是同一个对象引用，身份比较会失效，两条请求链会同时写 data。
+  _destroyed: false,
+  _chooseSeq: 0,
 
   onLoad(options) {
     this._timers = [];
     this._nearbyCache = {};
+    this._nearbyInflight = {};
+    this._destroyed = false;
 
     const regionId = (options && options.regionId) || DEFAULT_REGION_ID;
     const region = getRegionById(regionId);
+    this._regionId = region.id;
     const feature = region.geo.features[0];
     const regionName = feature.properties.name;
     const regionCenter = {
@@ -241,6 +251,37 @@ Page({
     this.initAudio();
   },
 
+  // 切后台时 webview 会暂停 CSS 动画，但墙钟时间照走。
+  // 回来再松手，力度条的位置和 elapsed 反解出的力度就对不上了 ——
+  // 「所见即所得」这个前提不成立，所以直接取消这次蓄力。
+  onHide() {
+    if (this.data.phase === "charging") {
+      this.setData({ phase: "idle" });
+    }
+    if (this._bgmAudio) this._bgmAudio.pause();
+  },
+
+  onShow() {
+    if (this._bgmAudio && this.data.musicOn) this._bgmAudio.play();
+  },
+
+  onShareAppMessage() {
+    if (this.data.phase === "result" && this.data.resultText) {
+      return {
+        title: "飞镖帮我选了：" + this.data.resultText,
+        path: "/pages/game/game?regionId=" + this._regionId,
+      };
+    }
+    return {
+      title: "跟着 Jagger 去旅行 —— 投个飞镖决定去哪",
+      path: "/pages/index/index",
+    };
+  },
+
+  onShareTimeline() {
+    return { title: "跟着 Jagger 去旅行 —— 投个飞镖决定去哪" };
+  },
+
   onMapError(e) {
     console.error("map error", e.detail);
     wx.showToast({ title: "地图加载失败，请重试", icon: "none" });
@@ -251,9 +292,21 @@ Page({
   },
 
   onUnload() {
+    this._destroyed = true;
     this._clearTimers();
     if (this._bgmAudio) this._bgmAudio.destroy();
     if (this._sfxAudio) this._sfxAudio.destroy();
+  },
+
+  // ---------------- 异步回调守卫 ----------------
+  // seq 对不上 = 用户已经换了选择；_destroyed = 页面没了。两种都不能再 setData。
+  _isStale(seq) {
+    return this._destroyed || seq !== this._chooseSeq;
+  },
+
+  // .then 回调体自己抛错会变成静默的 unhandled rejection，统一兜住
+  _onAsyncError(where) {
+    return (err) => console.error("async error in " + where, err);
   },
 
   // ---------------- 动画定时器管理 ----------------
@@ -394,6 +447,7 @@ Page({
         label: String(i + 1),
         longitude: p.longitude,
         latitude: p.latitude,
+        km,
         distText:
           km < 1 ? Math.round(km * 1000) + " 米" : km.toFixed(1) + " 公里",
         dirText: bearingText(
@@ -516,6 +570,8 @@ Page({
 
     this._chosen = candidate;
     this._nearbyCache = {};
+    this._nearbyInflight = {};
+    const seq = ++this._chooseSeq; // 作废上一次选择遗留的在途请求
 
     wx.vibrateShort({ type: "light" });
     this.setData({
@@ -525,11 +581,6 @@ Page({
       probeDone: false,
       resultCollapsed: false,
       resultText: "正在查询地名...",
-      resultCoord:
-        "经度 " +
-        candidate.longitude.toFixed(6) +
-        "，纬度 " +
-        candidate.latitude.toFixed(6),
       resultMeta:
         this.data.powerText +
         " · 距中心 " +
@@ -544,17 +595,20 @@ Page({
     });
 
     // 地名和周边探测并行发出，谁先回来先渲染谁
-    lbs.reverseGeocode(candidate).then((res) => {
-      if (this._chosen !== candidate) return; // 用户已经换了一个
-      this.setData({ resultText: res.address });
-    });
+    lbs
+      .reverseGeocode(candidate)
+      .then((res) => {
+        if (this._isStale(seq)) return;
+        this.setData({ resultText: res.address });
+      })
+      .catch(this._onAsyncError("reverseGeocode"));
 
-    this._probe(candidate);
+    this._probe(candidate, seq);
   },
 
   // 半径逐级放大，直到找到足够多的去处。
   // 这一步决定了确认弹窗里那句话有没有信息量——光报个地名，用户判断不了行不行。
-  _probe(candidate) {
+  _probe(candidate, seq) {
     if (!lbs.hasKey()) {
       this.setData({
         probeDone: true,
@@ -562,6 +616,12 @@ Page({
       });
       return;
     }
+
+    // 地点搜索只有 200 次/日，是整个应用的配额瓶颈。
+    // 市区从 1km 起够用；远郊从 1km 起必然连探三档，白烧两次 —— 按落点
+    // 离市中心多远直接跳到合适的档位。
+    const startAt =
+      candidate.km < 8 ? 0 : candidate.km < 25 ? 1 : 2;
 
     const step = (i) => {
       if (i >= PROBE_RADII.length) {
@@ -574,47 +634,66 @@ Page({
       }
 
       const radius = PROBE_RADII[i];
-      lbs.countNearby(candidate, { keyword: "美食", radius }).then((res) => {
-        if (this._chosen !== candidate) return;
+      // 探测用的 keyword 和「吃饭」tab 完全一样，所以这一次请求同时把列表也拿回来，
+      // 确认后直接复用，不再为同一个 keyword+radius 发第二次请求。
+      lbs
+        .searchNearby(candidate, {
+          keyword: NEARBY_TABS[0].keyword,
+          radius,
+          limit: 20,
+        })
+        .then((res) => {
+          if (this._isStale(seq)) return;
 
-        if (!res.ok) {
-          this._probeRadius = radius;
-          this.setData({
-            probeDone: true,
-            probeText: res.message || "周边查询失败，仍可继续",
-          });
-          return;
-        }
+          if (!res.ok) {
+            this._probeRadius = radius;
+            this.setData({
+              probeDone: true,
+              probeText: res.message || "周边查询失败，仍可继续",
+            });
+            return;
+          }
 
-        if (res.count >= PROBE_ENOUGH || i === PROBE_RADII.length - 1) {
-          this._probeRadius = radius;
-          const km = radius / 1000;
+          if (res.count >= PROBE_ENOUGH || i === PROBE_RADII.length - 1) {
+            this._probeRadius = radius;
+            // 探测结果直接当默认 tab 的数据，省掉确认后的那次请求
+            this._nearbyCache[NEARBY_TABS[0].key] = {
+              list: res.list,
+              message: res.list.length
+                ? ""
+                : "这附近没有" + NEARBY_TABS[0].label + "的去处",
+            };
+            const km = radius / 1000;
+            this.setData({
+              probeDone: true,
+              probeText:
+                res.count > 0
+                  ? km + " 公里内有 " + res.count + " 个去处"
+                  : km + " 公里内没找到什么，这一镖有点荒",
+            });
+            return;
+          }
+
+          // 这一档太少，放大再探
           this.setData({
-            probeDone: true,
             probeText:
-              res.count > 0
-                ? km + " 公里内有 " + res.count + " 个去处"
-                : km + " 公里内没找到什么，这一镖有点荒",
+              radius / 1000 + " 公里内只有 " + res.count + " 个，再找远一点...",
           });
-          return;
-        }
-
-        // 这一档太少，放大再探
-        this.setData({
-          probeText: radius / 1000 + " 公里内只有 " + res.count + " 个，再找远一点...",
-        });
-        step(i + 1);
-      });
+          step(i + 1);
+        })
+        .catch(this._onAsyncError("searchNearby(probe)"));
     };
 
     this.setData({ probeText: "正在看看附近有什么..." });
-    step(0);
+    step(startAt);
   },
 
   // 不满意：退回三选一，三个候选重新亮出来
   onRejectSpot() {
     if (this.data.phase !== "confirming") return;
     this._chosen = null;
+    this._chooseSeq++; // 作废这次选择的在途请求
+    this._nearbyInflight = {};
     const candidates = this.data.candidates;
     this.setData({
       phase: "picking",
@@ -662,6 +741,12 @@ Page({
 
     this.setData({ nearbyLoading: true, nearbyList: [], nearbyMessage: "" });
 
+    // 缓存要等请求回来才写，所以「点咖啡(在飞) → 点吃饭 → 再点咖啡」
+    // 会对同一个 keyword 发两次请求。这里按 key 去重，等在途那次回来即可。
+    if (this._nearbyInflight[key]) return;
+    this._nearbyInflight[key] = true;
+
+    const seq = this._chooseSeq;
     lbs
       .searchNearby(candidate, {
         keyword: tab.keyword,
@@ -669,7 +754,8 @@ Page({
         limit: 20,
       })
       .then((res) => {
-        if (this._chosen !== candidate || this.data.activeTab !== key) return;
+        delete this._nearbyInflight[key];
+        if (this._isStale(seq)) return;
 
         let message = "";
         if (!res.ok) {
@@ -681,12 +767,19 @@ Page({
           message = "这附近没有" + tab.label + "的去处";
         }
 
+        // 结果照常入缓存，即使用户已经切走——切回来就不用再请求了
         this._nearbyCache[key] = { list: res.list, message };
+        if (this.data.activeTab !== key) return;
+
         this.setData({
           nearbyLoading: false,
           nearbyList: res.list,
           nearbyMessage: message,
         });
+      })
+      .catch((err) => {
+        delete this._nearbyInflight[key];
+        this._onAsyncError("searchNearby")(err);
       });
   },
 
@@ -708,7 +801,9 @@ Page({
   throwAgain() {
     this._clearTimers();
     this._chosen = null;
+    this._chooseSeq++;
     this._nearbyCache = {};
+    this._nearbyInflight = {};
     this._probeRadius = PROBE_RADII[0];
     this.setData({
       phase: "idle",
@@ -719,7 +814,6 @@ Page({
       chosenIndex: -1,
       powerText: "",
       resultText: "",
-      resultCoord: "",
       resultMeta: "",
       probeText: "",
       probeDone: false,
