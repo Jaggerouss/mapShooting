@@ -26,6 +26,7 @@
 }
 
 .map-wrap {
+  position: relative;
   flex: 1;
   min-height: 0;
   border-radius: 16rpx;
@@ -42,8 +43,8 @@
   padding: 20rpx 0 30rpx;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 16rpx;
+  align-items: stretch;
+  gap: 12rpx;
 }
 
 .hint {
@@ -113,4 +114,639 @@
 .again-btn {
   background: #e24b4a;
   color: #fff;
+}
+
+/* ==================== 投掷特效层 ==================== */
+
+.fx-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* ---------- 锁定准星 ---------- */
+
+.crosshair {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 200rpx;
+  height: 200rpx;
+  margin-left: -100rpx;
+  margin-top: -100rpx;
+  animation: ch-lock 680ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+
+.ch-ring {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  border: 3rpx dashed rgba(226, 75, 74, 0.85);
+  border-radius: 50%;
+}
+
+.ch-line {
+  position: absolute;
+  background: rgba(226, 75, 74, 0.7);
+}
+
+.ch-line-h {
+  left: 50%;
+  top: 50%;
+  width: 260rpx;
+  height: 2rpx;
+  margin-left: -130rpx;
+}
+
+.ch-line-v {
+  left: 50%;
+  top: 50%;
+  width: 2rpx;
+  height: 260rpx;
+  margin-top: -130rpx;
+}
+
+@keyframes ch-lock {
+  0% {
+    transform: scale(2.4) rotate(-30deg);
+    opacity: 0;
+  }
+  25% {
+    opacity: 0.95;
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 0.95;
+  }
+}
+
+/* ---------- 飞镖本体 ---------- */
+/* 俯视视角：玩家从上方看飞镖朝地图飞去，看到的是镖尾十字翼。
+   scale 由大变小 = 飞远；rotate = 自旋。 */
+
+.dart {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 100rpx;
+  height: 100rpx;
+  margin-left: -50rpx;
+  margin-top: -50rpx;
+  z-index: 12;
+  animation: dart-fly 680ms cubic-bezier(0.34, 0.68, 0.4, 1) forwards;
+}
+
+.dart-fin {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 92rpx;
+  height: 22rpx;
+  margin-left: -46rpx;
+  margin-top: -11rpx;
+  border-radius: 6rpx;
+  background: linear-gradient(90deg, #b7302f, #ff8a5c);
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.35);
+}
+
+.dart-fin-2 {
+  transform: rotate(90deg);
+}
+
+.dart-fin-3 {
+  transform: rotate(45deg);
+  opacity: 0.8;
+}
+
+.dart-fin-4 {
+  transform: rotate(135deg);
+  opacity: 0.8;
+}
+
+.dart-hub {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 34rpx;
+  height: 34rpx;
+  margin-left: -17rpx;
+  margin-top: -17rpx;
+  border-radius: 50%;
+  background: #fff;
+  border: 5rpx solid #e24b4a;
+  box-sizing: border-box;
+}
+
+@keyframes dart-fly {
+  0% {
+    transform: translate3d(-70rpx, 560rpx, 0) scale(2.6) rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  55% {
+    transform: translate3d(30rpx, 200rpx, 0) scale(1.4) rotate(520deg);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(0.38) rotate(920deg);
+    opacity: 1;
+  }
+}
+
+/* ---------- 命中冲击波 ---------- */
+
+.shock {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 160rpx;
+  height: 160rpx;
+  margin-left: -80rpx;
+  margin-top: -80rpx;
+  border-radius: 50%;
+  box-sizing: border-box;
+  border: 6rpx solid rgba(226, 75, 74, 0.9);
+}
+
+.shock-1 {
+  animation: shock-out 620ms ease-out forwards;
+}
+
+.shock-2 {
+  border-width: 3rpx;
+  border-color: rgba(255, 200, 120, 0.9);
+  animation: shock-out 820ms ease-out 120ms forwards;
+}
+
+@keyframes shock-out {
+  0% {
+    transform: scale(0.15);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(3.6);
+    opacity: 0;
+  }
+}
+
+.flash {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 120rpx;
+  height: 120rpx;
+  margin-left: -60rpx;
+  margin-top: -60rpx;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(255, 190, 120, 0.6) 45%,
+    rgba(255, 190, 120, 0) 70%
+  );
+  animation: flash-pop 380ms ease-out forwards;
+}
+
+@keyframes flash-pop {
+  0% {
+    transform: scale(0.3);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+/* ---------- 命中抖屏 ---------- */
+
+.map-wrap.is-shaking {
+  animation: map-shake 320ms ease-in-out;
+}
+
+@keyframes map-shake {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  20% {
+    transform: translate3d(-8rpx, 5rpx, 0);
+  }
+  40% {
+    transform: translate3d(8rpx, -5rpx, 0);
+  }
+  60% {
+    transform: translate3d(-5rpx, -5rpx, 0);
+  }
+  80% {
+    transform: translate3d(5rpx, 5rpx, 0);
+  }
+}
+
+/* ==================== 力度条 ==================== */
+/* 摆动是纯 CSS（linear + alternate），蓄力期间不做 setData，所以不会掉帧。
+   linear 是必须的：只有动画进度等于时间进度，JS 按 elapsed 反推出的力度
+   才和用户在屏幕上看到的位置一致。改这里的 duration 要同步改 game.js 的
+   POWER_SWING_MS。 */
+
+.power-bar {
+  position: relative;
+  height: 20rpx;
+  border-radius: 10rpx;
+  background: #ececec;
+  overflow: hidden;
+}
+
+.power-fill {
+  height: 100%;
+  border-radius: 10rpx;
+  background: linear-gradient(90deg, #4a9e6f, #efa027, #e24b4a);
+  animation: power-swing 1200ms linear infinite alternate;
+}
+
+@keyframes power-swing {
+  from {
+    width: 4%;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+.power-idle {
+  height: 100%;
+  width: 0;
+}
+
+.power-tick {
+  position: absolute;
+  top: 0;
+  width: 2rpx;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.75);
+}
+
+.power-tick-near {
+  left: 33%;
+}
+
+.power-tick-far {
+  left: 66%;
+}
+
+.power-legend {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 22rpx;
+  color: #bbb;
+}
+
+.power-hint {
+  color: #666;
+  font-size: 24rpx;
+}
+
+.throw-btn.is-charging {
+  background: #b7302f;
+  transform: scale(0.985);
+}
+
+/* ==================== 蓄力准星（纯演出） ==================== */
+
+.aim {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 120rpx;
+  height: 120rpx;
+  margin-left: -60rpx;
+  margin-top: -60rpx;
+  animation: aim-drift 3400ms ease-in-out infinite alternate;
+}
+
+.aim-ring {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  border: 3rpx solid rgba(226, 75, 74, 0.55);
+  border-radius: 50%;
+  animation: aim-pulse 900ms ease-in-out infinite alternate;
+}
+
+.aim-dot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 14rpx;
+  height: 14rpx;
+  margin-left: -7rpx;
+  margin-top: -7rpx;
+  border-radius: 50%;
+  background: rgba(226, 75, 74, 0.9);
+}
+
+@keyframes aim-drift {
+  0% {
+    transform: translate3d(-90rpx, 70rpx, 0);
+  }
+  50% {
+    transform: translate3d(80rpx, -50rpx, 0);
+  }
+  100% {
+    transform: translate3d(-40rpx, -100rpx, 0);
+  }
+}
+
+@keyframes aim-pulse {
+  from {
+    transform: scale(0.85);
+    opacity: 0.5;
+  }
+  to {
+    transform: scale(1.15);
+    opacity: 0.95;
+  }
+}
+
+/* ==================== 三选一面板 ==================== */
+
+.pick-panel {
+  position: fixed;
+  left: 24rpx;
+  right: 24rpx;
+  bottom: 24rpx;
+  background: #fff;
+  border-radius: 20rpx;
+  box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.18);
+  padding: 24rpx;
+  z-index: 999;
+  animation: panel-up 260ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.pick-title {
+  display: block;
+  font-size: 26rpx;
+  color: #666;
+  text-align: center;
+  margin-bottom: 20rpx;
+}
+
+.pick-list {
+  display: flex;
+  gap: 16rpx;
+}
+
+.pick-card {
+  flex: 1;
+  min-width: 0;
+  border: 2rpx solid #eee;
+  border-radius: 16rpx;
+  padding: 20rpx 8rpx;
+  text-align: center;
+}
+
+.pick-card:active {
+  border-color: #e24b4a;
+  background: #fdf1f1;
+}
+
+.pick-no {
+  display: block;
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #e24b4a;
+  margin-bottom: 8rpx;
+}
+
+.pick-dist {
+  display: block;
+  font-size: 28rpx;
+  color: #333;
+}
+
+.pick-dir {
+  display: block;
+  font-size: 20rpx;
+  color: #aaa;
+  margin-top: 4rpx;
+}
+
+@keyframes panel-up {
+  from {
+    transform: translate3d(0, 40rpx, 0);
+    opacity: 0;
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+}
+
+.result-meta {
+  font-size: 24rpx;
+  color: #999;
+  display: block;
+  margin-bottom: 8rpx;
+}
+
+/* ==================== 确认弹窗 ==================== */
+
+.dialog-mask {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1200;
+}
+
+.dialog {
+  width: 560rpx;
+  background: #fff;
+  border-radius: 24rpx;
+  padding: 40rpx 32rpx 24rpx;
+  animation: dialog-in 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes dialog-in {
+  from {
+    transform: scale(0.88);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.dialog-title {
+  display: block;
+  font-size: 32rpx;
+  font-weight: 600;
+  line-height: 1.45;
+  text-align: center;
+  margin-bottom: 12rpx;
+}
+
+.dialog-meta {
+  display: block;
+  font-size: 22rpx;
+  color: #aaa;
+  text-align: center;
+  margin-bottom: 28rpx;
+}
+
+.dialog-probe {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  min-height: 72rpx;
+  padding: 0 12rpx;
+  margin-bottom: 28rpx;
+  background: #f7f7f7;
+  border-radius: 14rpx;
+}
+
+.probe-text {
+  font-size: 25rpx;
+  color: #555;
+  text-align: center;
+}
+
+.probe-spinner {
+  width: 26rpx;
+  height: 26rpx;
+  flex-shrink: 0;
+  border: 4rpx solid #ddd;
+  border-top-color: #e24b4a;
+  border-radius: 50%;
+  animation: spin 700ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.dialog-actions {
+  display: flex;
+  gap: 20rpx;
+}
+
+.dialog-btn {
+  flex: 1;
+  font-size: 28rpx;
+  line-height: 80rpx;
+  border-radius: 40rpx;
+  margin: 0;
+}
+
+.dialog-btn-ghost {
+  background: #f2f2f2;
+  color: #666;
+}
+
+.dialog-btn-primary {
+  background: #e24b4a;
+  color: #fff;
+  font-weight: 600;
+}
+
+/* ==================== 周边推荐 ==================== */
+
+.tab-bar {
+  display: flex;
+  gap: 12rpx;
+  margin: 20rpx 0 16rpx;
+}
+
+.tab {
+  flex: 1;
+  text-align: center;
+  font-size: 26rpx;
+  color: #888;
+  line-height: 64rpx;
+  border-radius: 32rpx;
+  background: #f4f4f4;
+}
+
+.tab.is-active {
+  background: #e24b4a;
+  color: #fff;
+  font-weight: 600;
+}
+
+/* scroll-view 必须给确定高度，只给 max-height 在部分设备上不滚动
+   —— 和 DEVNOTES 里 scroll-x 缺 width 那个 bug 是同一类问题 */
+.nearby-scroll {
+  height: 460rpx;
+}
+
+.nearby-hint {
+  padding: 48rpx 0;
+  text-align: center;
+  font-size: 25rpx;
+  color: #aaa;
+}
+
+.poi {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 20rpx 8rpx;
+  border-bottom: 2rpx solid #f2f2f2;
+  text-align: left;
+}
+
+.poi:active {
+  background: #fafafa;
+}
+
+.poi-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.poi-name {
+  display: block;
+  font-size: 28rpx;
+  color: #222;
+  margin-bottom: 6rpx;
+}
+
+.poi-addr {
+  display: block;
+  font-size: 22rpx;
+  color: #aaa;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.poi-dist {
+  flex-shrink: 0;
+  font-size: 24rpx;
+  color: #e24b4a;
+}
+
+.again-btn {
+  margin-top: 24rpx;
 }
