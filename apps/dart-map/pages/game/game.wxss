@@ -750,3 +750,106 @@
 .again-btn {
   margin-top: 24rpx;
 }
+
+/* ==================== 顶栏 chip ==================== */
+
+.top-right {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.weather-chip,
+.explore-chip {
+  font-size: 20rpx;
+  color: #888;
+  background: #f2f2f2;
+  border-radius: 20rpx;
+  padding: 6rpx 16rpx;
+  line-height: 1.4;
+}
+
+.explore-chip {
+  color: #b7302f;
+  background: #fdf1f1;
+}
+
+/* ==================== 三选一：没去过的标记 + 分享 ==================== */
+
+.pick-card {
+  position: relative;
+}
+
+.pick-card.is-new {
+  border-color: #f0c98a;
+  background: #fffaf0;
+}
+
+.pick-badge {
+  position: absolute;
+  top: -14rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 18rpx;
+  color: #8a5a12;
+  background: #ffd88a;
+  border-radius: 12rpx;
+  padding: 2rpx 12rpx;
+  white-space: nowrap;
+}
+
+.pick-share {
+  margin-top: 18rpx;
+  background: none;
+  color: #e24b4a;
+  font-size: 25rpx;
+  line-height: 60rpx;
+  border: 2rpx solid #f0c9c8;
+  border-radius: 30rpx;
+}
+
+.pick-share::after {
+  border: none;
+}
+
+/* ==================== 弹窗里的雨天提示 ==================== */
+
+.dialog-weather {
+  display: block;
+  font-size: 22rpx;
+  color: #7a6a3a;
+  background: #fdf6e3;
+  border-radius: 10rpx;
+  padding: 12rpx 14rpx;
+  margin-bottom: 16rpx;
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* ==================== 结果面板底部按钮 ==================== */
+
+.result-actions {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 20rpx;
+}
+
+.result-actions .again-btn,
+.result-actions .went-btn {
+  flex: 1;
+  margin-top: 0;
+  font-size: 27rpx;
+  line-height: 80rpx;
+  border-radius: 40rpx;
+}
+
+.went-btn {
+  background: #f2f2f2;
+  color: #666;
+}
+
+.went-btn.is-on {
+  background: #e8f3e0;
+  color: #3b6d11;
+  font-weight: 600;
+}
