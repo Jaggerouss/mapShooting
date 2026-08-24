@@ -25,6 +25,36 @@
       </view>
     </picker>
 
-    <button class="start-btn" bindtap="onStartGame" style="position: relative; left: 0rpx; top: 2rpx">开始游戏</button>
+    <!-- 最远距离：给「选上海市抽到崇明岛」兜底。
+         选中后力度 100% 就等于这个上限，而不是区域最远点。 -->
+    <picker
+      class="region-picker"
+      mode="selector"
+      range="{{maxKmOptions}}"
+      range-key="label"
+      value="{{maxKmIndex}}"
+      bindchange="onMaxKmChange"
+    >
+      <view class="region-picker-inner">
+        <text>最远：{{maxKmOptions[maxKmIndex].label}}</text>
+        <text class="region-picker-arrow">▾</text>
+      </view>
+    </picker>
+
+    <!-- 探索度：这一片你走过多少了 -->
+    <view wx:if="{{explored}}" class="explore-card">
+      <view class="explore-head">
+        <text class="explore-label">已探索 {{regionList[regionIndex].name}}</text>
+        <text class="explore-pct">{{explored.percent}}%</text>
+      </view>
+      <view class="explore-bar">
+        <view class="explore-fill" style="width:{{explored.percent}}%"></view>
+      </view>
+      <text class="explore-sub">
+        抽中过 {{explored.picked}} 个地方 · 去过 {{explored.went}} 个
+      </text>
+    </view>
+
+    <button class="start-btn" bindtap="onStartGame">开始游戏</button>
   </view>
 </view>

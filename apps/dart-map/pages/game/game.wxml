@@ -1,8 +1,11 @@
 <view class="page">
   <view class="top-bar">
     <text class="title">选 · {{regionName}}</text>
-    <view wx:if="{{false}}" class="music-btn" bindtap="toggleMusic">
-      <text>{{musicOn ? '🔊' : '🔇'}}</text>
+    <view class="top-right">
+      <text wx:if="{{weather}}" class="weather-chip">
+        {{weather.text}} {{weather.temperature}}°
+      </text>
+      <text wx:if="{{explored}}" class="explore-chip">已探索 {{explored.percent}}%</text>
     </view>
   </view>
 
@@ -84,20 +87,29 @@
 
   <!-- 三选一：候选只显示距离和方位（本地算，不花 API 配额），选中后才查地名 -->
   <view wx:if="{{phase === 'picking'}}" class="pick-panel">
-    <text class="pick-title">三个落点，挑一个 · {{powerText}}</text>
+    <text class="pick-title">
+      {{fromShare ? '对方投了一镖，你来挑' : '三个落点，挑一个'}}
+      <block wx:if="{{powerText}}"> · {{powerText}}</block>
+    </text>
     <view class="pick-list">
       <view
         wx:for="{{candidates}}"
         wx:key="index"
-        class="pick-card"
+        class="pick-card {{item.isNew ? 'is-new' : ''}}"
         data-index="{{item.index}}"
         bindtap="onPickCandidate"
       >
+        <text wx:if="{{item.isNew}}" class="pick-badge">没去过</text>
         <text class="pick-no">{{item.label}}</text>
         <text class="pick-dist">{{item.distText}}</text>
         <text class="pick-dir">中心{{item.dirText}}方向</text>
       </view>
     </view>
+
+    <!-- 双人：把三个候选分享出去，让对方拍板。坐标塞在 path 里，不需要后端。 -->
+    <button wx:if="{{!fromShare}}" class="pick-share" open-type="share">
+      让对方来选 ›
+    </button>
   </view>
 
   <!-- 确认弹窗：先探周边再问「行不行」。
@@ -111,6 +123,10 @@
         <view wx:if="{{!probeDone}}" class="probe-spinner"></view>
         <text class="probe-text">{{probeText}}</text>
       </view>
+
+      <text wx:if="{{weather.isRainy}}" class="dialog-weather">
+        今天{{weather.text}}，已经先给你切到室内的去处
+      </text>
 
       <view class="dialog-actions">
         <button class="dialog-btn dialog-btn-ghost" bindtap="onRejectSpot">换一个</button>
@@ -159,7 +175,12 @@
         </view>
       </scroll-view>
 
-      <button class="again-btn" bindtap="throwAgain">再投一次</button>
+      <view class="result-actions">
+        <button class="went-btn {{went ? 'is-on' : ''}}" bindtap="onToggleWent">
+          {{went ? '✓ 已去过' : '我去了'}}
+        </button>
+        <button class="again-btn" bindtap="throwAgain">再投一次</button>
+      </view>
     </view>
   </view>
 </view>

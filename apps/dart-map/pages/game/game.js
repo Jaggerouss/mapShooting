@@ -6,6 +6,8 @@ const {
 // 位置服务全部走适配层，页面不直接碰任何服务商的 API。
 // 换服务商（比如接高德拿评分）只改 utils/lbs.js，这个文件不用动。
 const lbs = require("../../utils/lbs.js");
+const visited = require("../../utils/visited.js");
+const weather = require("../../utils/weather.js");
 
 // ---------------- 投掷动画时序（毫秒），需与 game.wxss 里的 animation 时长保持一致 ----------------
 const FLY_MS = 680; // 飞镖飞行 = dart-fly / ch-lock
@@ -20,6 +22,7 @@ const MIN_CHARGE_MS = 150; // 短于此视为误触
 
 const CANDIDATE_COUNT = 3;
 const KM_PER_DEG = 111.32;
+
 
 // 落点是纯几何随机的——只保证在行政区边界内，不保证是人能去的地方。
 // 郊区随机点落在农田、鱼塘、高速中间很常见，所以确认前先探一次周边，
@@ -171,6 +174,12 @@ Page({
     candidates: [],
     chosenIndex: -1,
 
+    explored: null,   // 探索度
+    weather: null,    // 天气：null = 没配 Key 或还没回来，不显示
+    fromShare: false, // 从别人分享的链接进来
+    visitId: "",      // 本次确认的记录 id，用于「我去了」打卡
+    went: false,
+
     resultCollapsed: false,
     resultText: "",
     resultMeta: "",
@@ -203,6 +212,7 @@ Page({
   _nearbyCache: null,
   _nearbyInflight: null,
   _regionId: "",
+  _maxKm: 0, // 0 = 不限；来自首页的「最远距离」选择
 
   // 页面已销毁 / 用户已改选择时，异步回调必须闭嘴。
   // 用递增序号而不是比较候选对象的身份——「换一个」之后重选同一张卡，
@@ -242,13 +252,71 @@ Page({
     const heightKm = distanceKm(midLng, bbox.minLat, midLng, bbox.maxLat);
     this._regionScale = scaleForSpanKm(Math.max(widthKm, heightKm));
 
+    // 「最远不超过 X 公里」：把力度环带的归一化基准从「区域最远点」换成这个上限，
+    // 于是力度 100% 正好等于用户能接受的最远距离，而不是崇明岛。
+    const maxKm = Number(options && options.maxKm) || 0;
+    this._maxKm = maxKm > 0 ? Math.min(maxKm, this._maxRadiusKm) : 0;
+
     this.setData({
       regionName,
       mapCenter: regionCenter,
       mapScale: this._regionScale,
+      explored: visited.stats(this._regionId, this._ctxForStats(), pointInMultiPolygon),
     });
 
     this.initAudio();
+    this._loadWeather();
+    this._restoreFromShare(options);
+  },
+
+  _ctxForStats() {
+    return { bbox: this._bbox, multiPolygon: this._multiPolygon };
+  },
+
+  // 力度环带的归一化基准：有距离上限就用上限，否则用区域最远点
+  _radiusBase() {
+    return this._maxKm > 0 ? this._maxKm : this._maxRadiusKm;
+  },
+
+  _loadWeather() {
+    if (!weather.hasKey()) return;
+    weather
+      .today(this._regionId)
+      .then((res) => {
+        if (this._destroyed || !res.ok) return;
+        this.setData({ weather: res });
+        // 下雨天默认打开「逛街」——推古镇和公园是灾难
+        if (res.isRainy) this.setData({ activeTab: "mall" });
+      })
+      .catch(this._onAsyncError("weather"));
+  },
+
+  // 双人：对方分享过来的链接里带着三个候选，直接进三选一，跳过投掷
+  _restoreFromShare(options) {
+    const raw = options && options.pick;
+    if (!raw) return;
+
+    const pts = String(raw)
+      .split(";")
+      .map((seg) => {
+        const [lng, lat] = seg.split(",").map(Number);
+        return { longitude: lng, latitude: lat };
+      })
+      .filter((p) => isFinite(p.longitude) && isFinite(p.latitude));
+
+    if (!pts.length) return;
+
+    const candidates = this._decorate(pts);
+    const centroid = this._centroidOf(candidates);
+    this.setData({
+      fromShare: true,
+      phase: "picking",
+      powerText: (options && options.pw) ? "力度 " + options.pw + "%" : "",
+      candidates,
+      mapCenter: centroid,
+      mapScale: scaleForSpanKm(this._spanOf(candidates)),
+      markers: candidates.map((c) => this._markerOf(c, false)),
+    });
   },
 
   // 切后台时 webview 会暂停 CSS 动画，但墙钟时间照走。
@@ -266,12 +334,31 @@ Page({
   },
 
   onShareAppMessage() {
+    // 三选一阶段分享 = 双人模式：我投镖，你来选。
+    // 候选坐标塞进 path，对方打开直接进选择界面，不需要任何后端。
+    if (this.data.phase === "picking" && this.data.candidates.length) {
+      const pick = this.data.candidates
+        .map((c) => c.longitude.toFixed(5) + "," + c.latitude.toFixed(5))
+        .join(";");
+      const pw = /(\d+)/.exec(this.data.powerText || "");
+      return {
+        title: "我投了一镖，" + this.data.regionName + "三个地方，你来选",
+        path:
+          "/pages/game/game?regionId=" +
+          this._regionId +
+          "&pick=" +
+          pick +
+          (pw ? "&pw=" + pw[1] : ""),
+      };
+    }
+
     if (this.data.phase === "result" && this.data.resultText) {
       return {
         title: "飞镖帮我选了：" + this.data.resultText,
         path: "/pages/game/game?regionId=" + this._regionId,
       };
     }
+
     return {
       title: "跟着 Jagger 去旅行 —— 投个飞镖决定去哪",
       path: "/pages/index/index",
@@ -404,38 +491,73 @@ Page({
   },
 
   _pickCandidates(power) {
+    const base = this._radiusBase();
     const ctx = {
       multiPolygon: this._multiPolygon,
       bbox: this._bbox,
       center: this._regionCenter,
-      maxRadiusKm: this._maxRadiusKm,
+      maxRadiusKm: base,
     };
-    // 候选之间至少隔开一点，否则三个点挤在一起就没得选了
-    const minGapKm = this._maxRadiusKm * 0.06;
-    const picked = [];
+    const minGapKm = base * 0.06;
 
-    // 环带太窄可能采不满，逐级放宽；最后一档 1 等于不约束，保证一定有结果
+    // 先在环带里多采一批（不限间距，池子才撑得大），按「没去过的优先」排序，
+    // 最后贪心取 3 个并保证彼此间距 —— 间距约束放在最终选择上，不放在池子上。
+    //
+    // 早先用「采到去过的就以 85% 概率丢弃重来」，实测只有 51% 落在没去过的格子：
+    // 概率拒绝很快耗尽重试次数，一跌到放宽档位就等于没降权。
+    const POOL = 16;
+    const pool = [];
     const tolerances = [0.12, 0.22, 0.4, 1];
-    for (
-      let ti = 0;
-      ti < tolerances.length && picked.length < CANDIDATE_COUNT;
-      ti++
-    ) {
+
+    for (let ti = 0; ti < tolerances.length; ti++) {
       let guard = 0;
-      while (picked.length < CANDIDATE_COUNT && guard < 12) {
+      while (pool.length < POOL && guard < 40) {
         guard++;
-        const p = sampleByPower(ctx, power, tolerances[ti]);
+        const p = this._sampleOne(ctx, power, tolerances[ti]);
         if (!p) break;
-        const tooClose = picked.some(
-          (q) =>
-            distanceKm(q.longitude, q.latitude, p.longitude, p.latitude) <
-            minGapKm
-        );
-        if (!tooClose) picked.push(p);
+        pool.push(p);
       }
+      // 池子够挑了就不再放宽环带 —— 环带越窄，力度的语义越准
+      if (pool.length >= POOL || pool.length >= CANDIDATE_COUNT * 3) break;
     }
 
-    return picked.map((p, i) => {
+    const isNew = (p) =>
+      !visited.isVisited(this._regionId, p.longitude, p.latitude);
+    const ordered = pool.filter(isNew).concat(pool.filter((p) => !isNew(p)));
+
+    // 贪心取 3 个，彼此至少隔开 minGapKm
+    const picked = [];
+    for (const p of ordered) {
+      if (picked.length >= CANDIDATE_COUNT) break;
+      const tooClose = picked.some(
+        (q) =>
+          distanceKm(q.longitude, q.latitude, p.longitude, p.latitude) <
+          minGapKm
+      );
+      if (!tooClose) picked.push(p);
+    }
+    // 间距太严导致凑不满时，放弃间距要求补齐
+    for (const p of ordered) {
+      if (picked.length >= CANDIDATE_COUNT) break;
+      if (picked.indexOf(p) < 0) picked.push(p);
+    }
+
+    return this._decorate(picked);
+  },
+
+  // 在环带内采一个点
+  _sampleOne(ctx, power, tolerance) {
+    const { multiPolygon, bbox, center, maxRadiusKm } = ctx;
+    return sampleInRegion(multiPolygon, bbox, (lng, lat) => {
+      const d =
+        distanceKm(center.longitude, center.latitude, lng, lat) / maxRadiusKm;
+      return Math.abs(d - power) <= tolerance;
+    });
+  },
+
+  // 原始点 -> 带距离/方位文案的候选
+  _decorate(points) {
+    return points.map((p, i) => {
       const km = distanceKm(
         this._regionCenter.longitude,
         this._regionCenter.latitude,
@@ -448,6 +570,7 @@ Page({
         longitude: p.longitude,
         latitude: p.latitude,
         km,
+        isNew: !visited.isVisited(this._regionId, p.longitude, p.latitude),
         distText:
           km < 1 ? Math.round(km * 1000) + " 米" : km.toFixed(1) + " 公里",
         dirText: bearingText(
@@ -542,7 +665,10 @@ Page({
       callout: {
         content: chosen
           ? "就是这里！"
-          : candidate.label + " · " + candidate.distText,
+          : candidate.label +
+            " · " +
+            candidate.distText +
+            (candidate.isNew ? " 新" : ""),
         display: "ALWAYS",
         fontSize: chosen ? 13 : 11,
         borderRadius: 8,
@@ -708,8 +834,38 @@ Page({
 
   onConfirmSpot() {
     if (this.data.phase !== "confirming") return;
-    this.setData({ phase: "result" });
+
+    // 确认即记一笔。went 先留 false，回来之后可以补打卡。
+    const id = visited.add(this._regionId, this._chosen, {
+      name: this.data.resultText,
+      distText: this._chosen.distText,
+      dirText: this._chosen.dirText,
+    });
+
+    this.setData({
+      phase: "result",
+      visitId: id,
+      went: false,
+      explored: visited.stats(
+        this._regionId,
+        this._ctxForStats(),
+        pointInMultiPolygon
+      ),
+    });
     this._loadNearby(this.data.activeTab);
+  },
+
+  // 回来之后补打卡
+  onToggleWent() {
+    if (!this.data.visitId) return;
+    const next = !this.data.went;
+    visited.markWent(this._regionId, this.data.visitId, next);
+    this.setData({ went: next });
+    wx.vibrateShort({ type: "light" });
+    wx.showToast({
+      title: next ? "已记录，去过了" : "已取消",
+      icon: "none",
+    });
   },
 
   // ---------------- 周边推荐 ----------------
@@ -817,10 +973,14 @@ Page({
       resultMeta: "",
       probeText: "",
       probeDone: false,
-      activeTab: "food",
+      activeTab:
+        this.data.weather && this.data.weather.isRainy ? "mall" : "food",
       nearbyList: [],
       nearbyLoading: false,
       nearbyMessage: "",
+      visitId: "",
+      went: false,
+      fromShare: false,
       mapCenter: this._regionCenter,
       mapScale: this._regionScale,
       markers: [],

@@ -52,7 +52,7 @@
 
 .region-picker {
   width: 420rpx;
-  margin-bottom: 32rpx;
+  margin-bottom: 20rpx;
 }
 
 .region-picker-inner {
@@ -80,4 +80,54 @@
   font-weight: 600;
   border-radius: 44rpx;
   line-height: 88rpx;
+}
+
+/* ==================== 探索度 ==================== */
+
+.explore-card {
+  width: 420rpx;
+  margin: 12rpx 0 32rpx;
+  padding: 22rpx 24rpx;
+  background: rgba(255, 255, 255, 0.12);
+  border: 2rpx solid rgba(255, 255, 255, 0.35);
+  border-radius: 20rpx;
+  box-sizing: border-box;
+}
+
+.explore-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 12rpx;
+}
+
+.explore-label {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.explore-pct {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #fff;
+}
+
+.explore-bar {
+  height: 10rpx;
+  border-radius: 5rpx;
+  background: rgba(255, 255, 255, 0.2);
+  overflow: hidden;
+  margin-bottom: 10rpx;
+}
+
+.explore-fill {
+  height: 100%;
+  border-radius: 5rpx;
+  background: linear-gradient(90deg, #ffb457, #e24b4a);
+  transition: width 400ms ease-out;
+}
+
+.explore-sub {
+  font-size: 20rpx;
+  color: rgba(255, 255, 255, 0.6);
 }
